@@ -36,13 +36,13 @@ def setup_logging(verbosity: int):
 # -----------------------------
 THEMES = [
     "Reflection", "Gratitude", "Goals", "Creativity", "Shadow Work",
-    "Mindfulness", "Relationships", "Self‑Compassion", "Resilience", "Values",
+    "Mindfulness", "Relationships", "Self-Compassion", "Resilience", "Values",
     "Learning", "Career", "Health", "Joy", "Curiosity", "Boundaries",
 ]
 
-TONES = ["gentle", "provocative", "playful", "stoic", "poetic", "coach‑y"]
-STYLES = ["Socratic questions", "metaphor‑rich", "minimalist", "sensory‑focused", "future‑self", "counterfactual"]
-DEVICES = ["if/then riff", "3‑minute sprint", "first‑line finish", "contrast two lists", "micro‑story setup"]
+TONES = ["gentle", "provocative", "playful", "stoic", "poetic", "coach-y"]
+STYLES = ["Socratic questions", "metaphor-rich", "minimalist", "sensory-focused", "future-self", "counterfactual"]
+DEVICES = ["if/then riff", "3-minute sprint", "first-line finish", "contrast two lists", "micro-story setup"]
 
 
 # -----------------------------
@@ -51,14 +51,12 @@ DEVICES = ["if/then riff", "3‑minute sprint", "first‑line finish", "contrast
 
 def build_messages(n: int, theme_choices, tone, style, device, cooler: bool):
     """Builds a developer+user message with explicit output format rules."""
-    # Stable system guidance improves consistency across samples
     developer_text = (
         "You are a journaling coach. Generate concise, evocative prompts.\n"
         "Vary themes (reflection, gratitude, goals, creativity, shadow work, and more).\n"
         "Prefer concrete imagery over abstractions; avoid therapy jargon."
     )
 
-    # Output contract
     format_rules = (
         "Always use markdown dash-style lists (\"- \"), never numbers.\n"
         "Each item must begin with a Theme label followed by a colon, then the prompt.\n"
@@ -66,22 +64,18 @@ def build_messages(n: int, theme_choices, tone, style, device, cooler: bool):
         "Keep each prompt <= 20 words. No filler, no preambles."
     )
 
-    # Style knobs
     style_knobs = (
         f"Tone: {tone}. Style: {style}. Device: {device}.\n"
         "Favor specific nouns/verbs; skip cliches like 'journey' or 'authentic'."
     )
 
-    # Anti-repetition nudges
     dedupe_rules = (
         "Avoid repeating verbs, openings, or structures within the set.\n"
         "Vary sentence openings across the list."
     )
 
-    # Temperature profile
     variety_hint = "Keep it grounded and vivid." if cooler else "Take tasteful risks and surprise me."
 
-    # Compose user instruction
     user_text = (
         f"Make {n} daily journal prompts.\n"
         f"Chosen themes (shuffle and use each once): {', '.join(theme_choices)}.\n"
@@ -100,14 +94,10 @@ def build_messages(n: int, theme_choices, tone, style, device, cooler: bool):
 # -----------------------------
 
 def extract_text(response) -> str:
-    # Prefer the SDK convenience if present
     text = getattr(response, "output_text", None)
     if text:
-        # Keep markdown spacing consistent
-        lines = text.splitlines()
-        return "\n\n".join(lines)
+        return "\n\n".join(text.splitlines())
 
-    # Fallback — Responses API shape
     try:
         d = response.to_dict()
     except Exception:
@@ -135,15 +125,15 @@ def load_recent(history_path: Path, limit: int = 1000):
                     items.append(json.loads(line))
                 except Exception:
                     continue
-    # Return the most recent text bodies for quick substring checks
     return [it.get("text", "") for it in items][-limit:]
 
 
 def looks_too_similar(new_text: str, recents: list[str]) -> bool:
-    # Super light check: if any recent prompt chunk shares a long 6-word n-gram, re-roll
-    new_grams = set(" ".join(new_text.split()[i:i+6]).lower() for i in range(max(0, len(new_text.split()) - 5)))
+    words = new_text.split()
+    new_grams = set(" ".join(words[i:i+6]).lower() for i in range(max(0, len(words) - 5)))
     for blob in recents:
-        grams = set(" ".join(blob.split()[i:i+6]).lower() for i in range(max(0, len(blob.split()) - 5)))
+        bw = blob.split()
+        grams = set(" ".join(bw[i:i+6]).lower() for i in range(max(0, len(bw) - 5)))
         if new_grams & grams:
             return True
     return False
@@ -163,9 +153,8 @@ def main():
     args = parse_args()
     setup_logging(args.verbose)
 
-    load_dotenv()  # allow env overrides
+    load_dotenv()
 
-    # Read config.ini (optional)
     cfg = configparser.ConfigParser()
     cfg.read("config.ini")
 
@@ -182,7 +171,7 @@ def main():
 
     client = OpenAI(api_key=api_key)
 
-    # Seed: default to YYYYMMDD for daily consistency, override with --seed for reproducibility
+    # Seed: default to YYYYMMDD for daily consistency
     seed = args.seed if args.seed is not None else int(datetime.now().strftime("%Y%m%d"))
     random.seed(seed)
 
@@ -195,21 +184,17 @@ def main():
 
     # Sampling profile
     if args.cool:
-        generation_config = {
-            "temperature": 0.7,
-            "top_p": 0.9,
-            "presence_penalty": 0.1,
-            "frequency_penalty": 0.1,
-            "max_output_tokens": 400,
-        }
+        sampling_kwargs = dict(
+            temperature=0.7,
+            top_p=0.9,
+            max_output_tokens=400,
+        )
     else:
-        generation_config = {
-            "temperature": 1.15,
-            "top_p": 0.96,
-            "presence_penalty": 0.6,
-            "frequency_penalty": 0.35,
-            "max_output_tokens": 400,
-        }
+        sampling_kwargs = dict(
+            temperature=1.15,
+            top_p=0.96,
+            max_output_tokens=400,
+        )
 
     # Build messages
     messages = build_messages(args.count, theme_choices, tone, style, device, args.cool)
@@ -221,28 +206,25 @@ def main():
         input=messages,
         text={"format": {"type": "text"}},
         reasoning={"effort": "low"},
-        generation_config=generation_config,
         store=True,
     )
-
     text = extract_text(response)
 
-    # Very light duplicate guard: if too similar to recent history, try one quick re-roll
+    # Re-roll once if too similar to recent history
     history_path = directory / ".history.jsonl"
     recents = load_recent(history_path)
     if looks_too_similar(text, recents):
-        logging.info("Output resembled recent history — re‑rolling once for variety…")
+        logging.info("Output resembled recent history — re-rolling once for variety…")
         response = client.responses.create(
             model=args.model,
             input=messages,
             text={"format": {"type": "text"}},
             reasoning={"effort": "low"},
-            generation_config=generation_config,
             store=True,
         )
         text = extract_text(response)
 
-    # Write Markdown (with light front matter for GitHub renderers)
+    # Write Markdown (with light front matter)
     date_str = datetime.now().strftime("%Y-%m-%d")
     outfile = directory / f"{date_str}.md"
     with outfile.open("w", encoding="utf-8") as f:
@@ -255,7 +237,6 @@ def main():
         f.write("# Daily Journal Prompts\n\n")
         f.write(text or "No prompts generated.\n")
 
-    # Save raw to history for future de‑duplication
     append_history(history_path, {
         "timestamp": datetime.now().isoformat(),
         "model": args.model,
@@ -271,3 +252,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
