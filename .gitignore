@@ -1,0 +1,17 @@
+.direnv
+.env
+.envrc
+.idea
+.venv
+config.ini
+api_key.txt
+# Python
+__pycache__/
+*.pyc
+
+# Env & local config
+prompts/.history.jsonl
+
+# Outputs
+prompts/*.md
+!prompts/.gitkeep
