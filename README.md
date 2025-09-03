@@ -11,8 +11,9 @@ cp .env.example .env && $EDITOR .env  # add your OPENAI_API_KEY
 python prompt_gen.py --count 5
 ```
 
-```markdown
 ## Example output:
+
+```markdown
 
 ---
 title: Daily Journal Prompts (2025-09-01)
