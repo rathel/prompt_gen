@@ -9,8 +9,10 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt  # or: uv pip install -r requirements.txt
 cp .env.example .env && $EDITOR .env  # add your OPENAI_API_KEY
 python prompt_gen.py --count 5
+```
 
-Example output:
+```markdown
+## Example output:
 
 ---
 title: Daily Journal Prompts (2025-09-01)
@@ -32,3 +34,4 @@ seed: 20250901
 - Creativity: – Picture a scene where your sketchbook holds a new shape.
 
 - Resilience: – Name a stubborn obstacle and the small step that pushed through.
+```
